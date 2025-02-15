@@ -82,6 +82,7 @@ jobs:
            cd ..
 
       - name: Mountify
+      run: |
            CONFIG_OVERLAY_FS=y and CONFIG_TMPFS_XATTR=y
            
       - name: Build kernel
