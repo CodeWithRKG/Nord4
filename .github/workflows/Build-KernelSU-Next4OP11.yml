@@ -9,7 +9,7 @@ on:
       FEIL:
         description: "Model"
         required: true
-        default: 'oneplus_11_v.xml'
+        default: 'oneplus_11_v'
       CPUD:
         description: "Model"
         required: true
