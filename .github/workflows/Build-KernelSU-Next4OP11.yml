@@ -132,7 +132,7 @@ jobs:
           git add -A && git commit -m "BUILD Kernel" || echo "No changes to commit in common"
           cd ../msm-kernel && git add -A && git commit -m "BUILD Kernel" || echo "No changes to commit in msm-kernel"
       # 构建内核
-     - name: Build kernel
+      - name: Build kernel
         run: |
           cd kernel_workspace
           export LTO=thin
