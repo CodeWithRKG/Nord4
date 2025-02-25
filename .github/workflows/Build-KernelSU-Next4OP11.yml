@@ -132,16 +132,18 @@ jobs:
           git add -A && git commit -m "BUILD Kernel" || echo "No changes to commit in common"
           cd ../msm-kernel && git add -A && git commit -m "BUILD Kernel" || echo "No changes to commit in msm-kernel"
       # 构建内核
-      - name: Build kernel
+     - name: Build kernel
         run: |
           cd kernel_workspace
+          export LTO=thin
           ./kernel_platform/oplus/build/oplus_build_kernel.sh kalama gki
-      # 创建 AnyKernel3 包
-      - name: Package with AnyKernel3
+         
+      - name: Make AnyKernel3
         run: |
-          git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
-          rm -rf AnyKernel3/.git
-          cp kernel_workspace/kernel_platform/out/msm-${{ github.event.inputs.CPUD }}-${{ github.event.inputs.CPUD }}-gki/dist/Image ./AnyKernel3/
+          git clone https://github.com/TanakaLun/AnyKernel3 --depth=1
+          rm -rf ./AnyKernel3/.git
+          cp kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/dist/Image ./AnyKernel3/
+
       # 上传 AnyKernel3
       - name: Upload AnyKernel3 artifact
         uses: actions/upload-artifact@v4
