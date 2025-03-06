@@ -3,41 +3,37 @@ on:
   workflow_dispatch:
     inputs:
       CPU:
-        description: "分支"
+        description: "SM"
         required: true
-        default: 'sm8650'
+        default: 'sm7675'
       FEIL:
-        description: "配置文件"
+        description: "Modele"
         required: true
         default: 'oneplus_nord_4_v'
-      CPUD:
-        description: "处理器代号"
-        required: true
-        default: 'kalama'
       ANDROID_VERSION:
-        description: "内核安卓版本"
+        description: "Android"
         required: true
         default: 'android14'
       KERNEL_VERSION:
-        description: "内核版本"
+        description: "Version"
         required: true
         default: '6.1'
       BUILD_METHOD:
-        description: "编译方式"
+        description: "GKI"
         required: true
         default: 'gki'
       KSUNEXT_ENABLED:
-        description: "添加 KSU Next"
+        description: "KSU Next"
         required: true
         type: boolean
         default: true
       SUSFS_ENABLED:
-        description: "添加 SUSFS"
+        description: "SUSFS"
         required: true
         type: boolean
         default: true
       SUSFS_VERSION:
-        description: "SUSFS 版本"
+        description: "SUSFS"
         required: true
         default: 'v1.5.5'
 jobs:
