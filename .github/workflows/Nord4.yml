@@ -204,7 +204,7 @@ jobs:
           pwd
           ls -l
             
-       - name: Create ZIP Package
+      - name: Create ZIP Package
         working-directory: builds/${{ env.ROOT_DIR }}
         run: |
           cp kernel_platform/oneplus12_v/kernel_platform/out/dist/Image AnyKernel3/Image
