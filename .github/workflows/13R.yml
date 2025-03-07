@@ -1,9 +1,9 @@
-name: Build OnePlus Ace 13R Kernelsu With SUSFS VFS
+name: Build OnePlus Ace 13R
 
 on:
   workflow_call:  # This allows this workflow to be called from another workflow
   workflow_dispatch:
-  
+   
 jobs:
   build-kernel-a14-6-1-kernelsu-susfs:
     runs-on: ubuntu-22.04
@@ -42,6 +42,12 @@ jobs:
           curl https://storage.googleapis.com/git-repo-downloads/repo > ./git-repo/repo
           chmod a+rx ./git-repo/repo
           echo "REPO=$GITHUB_WORKSPACE/./git-repo/repo" >> $GITHUB_ENV
+
+          # Ensure repo tool is in the PATH
+          mkdir -p ~/bin
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          chmod a+rx ~/bin/repo
+          echo 'export PATH=~/bin:$PATH' >> $GITHUB_ENV
       
       - name: Clone AnyKernel3 and Other Dependencies
         run: |
@@ -165,7 +171,7 @@ jobs:
           echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
-                   
+                    
       - name: Run sed and perl Commands
         run: |
           echo "Changing to configuration directory: $CONFIG..."
