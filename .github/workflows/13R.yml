@@ -1,33 +1,60 @@
 name: Build OnePlus Ace 13R
-
 on:
-  workflow_call:  # This allows this workflow to be called from another workflow
   workflow_dispatch:
-   
+    inputs:
+      CPU:
+        description: "SM"
+        required: true
+        default: 'sm8650'
+      FEIL:
+        description: "Oneplus"
+        required: true
+        default: 'oneplus13r'
+      CPUD:
+        description: "pineapple"
+        required: true
+        default: 'pineapple'
+      ANDROID_VERSION:
+        description: "android"
+        required: true
+        default: 'android14'
+      KERNEL_VERSION:
+        description: "version"
+        required: true
+        default: '6.1'
+      KSUNEXT_ENABLED:
+        description: "KSU NEXT"
+        required: true
+        type: boolean
+        default: true
+      SUSFS_ENABLED:
+        description: "SUSFS"
+        required: true
+        type: boolean
+        default: true
 jobs:
-  build-kernel-a14-6-1-kernelsu-susfs:
+  build:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Maximize build space
         uses: easimon/maximize-build-space@master
         with:
           root-reserve-mb: 8192
-          temp-reserve-mb: 4096
-          swap-size-mb: 8192
+          temp-reserve-mb: 2048
           remove-dotnet: 'true'
           remove-android: 'true'
           remove-haskell: 'true'
           remove-codeql: 'true'
-
+          
       - name: Configure Git
         run: |
          git config --global user.name "build"
-         git config --global user.email "70756062@qq.com"
+         git config --global user.email "3436378798@qq.com"
       - name: Install dependencies
         run: |
          sudo apt update && sudo apt upgrade -y
-         sudo apt install -y python3 git curl patch bc bison flex libssl-dev
+         sudo apt install -y python3 git curl
       - name: Install repo tool
         run: |
          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
