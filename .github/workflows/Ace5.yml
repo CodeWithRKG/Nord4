@@ -1,4 +1,4 @@
-name: Build OnePlus 13R
+name: Build OnePlus ACE5
 on:
   workflow_dispatch:
     inputs:
