@@ -162,13 +162,13 @@ jobs:
       - name: Build kernel
         run: |
          cd kernel_workspace
-         ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ github.event.inputs.CPUD }} ${{ github.event.inputs.BUILD_METHOD }}
+         ./kernel_platform/oplus/build/oplus_build_kernel.sh kalama gki
          
       - name: Make AnyKernel3
         run: |
          git clone https://github.com/Numbersf/AnyKernel3 --depth=1
          rm -rf ./AnyKernel3/.git
-         cp kernel_workspace/kernel_platform/out/msm-kernel-pineapple-gki/dist/Image ./AnyKernel3/
+         cp kernel_workspace/kernel_platform/out/msm-kernel-kalama-gki/dist/Image ./AnyKernel3/
       - name: Download SUSFS Module
         run: |
          wget https://github.com/sidex15/ksu_module_susfs/releases/latest/download/ksu_module_susfs_1.5.2+.zip
