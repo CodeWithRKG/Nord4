@@ -3,15 +3,15 @@ on:
   workflow_dispatch:
     inputs:
       CPU:https://github.com/Bouteillepleine/O11/tree/main/.github/workflows
-        description: "SM"
-        required: true
+        description:"SM"
+        required:true
         default: 'sm8750'
       FEIL:
         description: "Model"
         required: true
         default: 'oneplus_ace5_pro'
       CPUD:
-        description: "pineapple"
+        description: "kaanapali"
         required: true
         default: 'pineapple'
       ANDROID_VERSION:
