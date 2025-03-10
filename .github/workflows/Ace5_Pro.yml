@@ -2,9 +2,9 @@ name: Build OnePlus ACE5 Pro
 on:
   workflow_dispatch:
     inputs:
-      CPU:https://github.com/Bouteillepleine/O11/tree/main/.github/workflows
-        description:"SM"
-        required:true
+      CPU:
+        description: "SM"
+        required: true
         default:'sm8750'
       FEIL:
         description: "Model"
