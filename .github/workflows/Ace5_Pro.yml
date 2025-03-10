@@ -11,9 +11,9 @@ on:
         required: true
         default: 'oneplus_ace5_pro'
       CPUD:
-        description: "kaanapali"
+        description: "pineapple"
         required: true
-        default: 'kaanapali'
+        default: 'pineapple'
       ANDROID_VERSION:
         description: "Android"
         required: true
