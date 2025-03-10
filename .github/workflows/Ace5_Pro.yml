@@ -13,7 +13,7 @@ on:
       CPUD:
         description: "kaanapali"
         required: true
-        default: 'pineapple'
+        default: 'kaanapali'
       ANDROID_VERSION:
         description: "Android"
         required: true
@@ -71,7 +71,7 @@ jobs:
       - name: Initialize repo and sync
         run: |
          mkdir kernel_workspace && cd kernel_workspace
-         repo init -u https://github.com/rshinesun/OnePlusOSS/blob/main/oneplus_ace5_pro.xml --depth=1
+         repo init -u https://github.com/rshinesun/OnePlusOSS.git -m oneplus_ace5_pro.xml --depth=1
          repo sync
          rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
          rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
