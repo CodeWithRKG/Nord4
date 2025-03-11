@@ -72,12 +72,7 @@ jobs:
          mkdir kernel_workspace && cd kernel_workspace
          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b refs/heads/oneplus/${{ github.event.inputs.CPU }} -m ${{ github.event.inputs.FEIL }}.xml --depth=1
          repo sync
-         rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
-         rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
-         sed -i 's/ -dirty//g' kernel_platform/common/scripts/setlocalversion
-         sed -i 's/ -dirty//g' kernel_platform/msm-kernel/scripts/setlocalversion
-         sed -i '$s|echo "\$res"|echo "$res"|' kernel_platform/common/scripts/setlocalversion            
-         sed -i '$s|echo "\$res"|echo "$res"|' kernel_platform/msm-kernel/scripts/setlocalversion
+         
 
       - name: Set up KernelSU Next
         if: github.event.inputs.KSUNEXT_ENABLED == 'true'
@@ -162,9 +157,18 @@ jobs:
           echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
          sed -i '2s/check_defconfig//' ./common/build.config.gki
 
+      - name: Rename
+         rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
+         rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
+         #sed -i 's/ -dirty//g' kernel_platform/common/scripts/setlocalversion
+         #sed -i 's/ -dirty//g' kernel_platform/msm-kernel/scripts/setlocalversion
+         #sed -i '$s|echo "\$res"|echo "$res"|' kernel_platform/common/scripts/setlocalversion            
+         #sed -i '$s|echo "\$res"|echo "$res"|' kernel_platform/msm-kernel/scripts/setlocalversion
+
       - name: Build kernel
         run: |
          cd kernel_workspace
+         for file in $(find ${GITHUB_WORKSPACE} -type f -name 'setlocalversion' 2>/dev/null);do sed -i 's/-dirty//' $file;sed -i '$s|echo "\$res"|echo "$res"|' $file;done
          ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ github.event.inputs.CPUD }} ${{ github.event.inputs.BUILD_METHOD }}
          
       - name: Make AnyKernel3
