@@ -1,4 +1,4 @@
-name: Build Kernel For Nord4
+name: Build OnePlus Nord4
 on:
   workflow_dispatch:
     inputs:
@@ -7,23 +7,27 @@ on:
         required: true
         default: 'sm7675'
       FEIL:
-        description: "Modele"
+        description: "Model"
         required: true
         default: 'oneplus_nord_4_v'
+      CPUD:
+        description: "pineapple"
+        required: true
+        default: 'pineapple'
       ANDROID_VERSION:
         description: "Android"
         required: true
         default: 'android14'
       KERNEL_VERSION:
-        description: "Version"
+        description: "version"
         required: true
         default: '6.1'
       BUILD_METHOD:
-        description: "GKI"
+        description: "gki"
         required: true
         default: 'gki'
       KSUNEXT_ENABLED:
-        description: "KSU Next"
+        description: KSU Next"
         required: true
         type: boolean
         default: true
@@ -55,25 +59,27 @@ jobs:
         run: |
          git config --global user.name "build"
          git config --global user.email "263623064@qq.com"
-
       - name: Install dependencies
         run: |
          sudo apt update && sudo apt upgrade -y
          sudo apt install -y python3 git curl patch bc bison flex libssl-dev
-
       - name: Install repo tool
         run: |
          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/repo
          chmod a+x ~/repo
          sudo mv ~/repo /usr/local/bin/repo
-
       - name: Initialize repo and sync
         run: |
          mkdir kernel_workspace && cd kernel_workspace
          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b refs/heads/oneplus/${{ github.event.inputs.CPU }} -m ${{ github.event.inputs.FEIL }}.xml --depth=1
          repo sync
-         
-
+         rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
+         rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
+         sed -i 's/ -dirty//g' kernel_platform/common/scripts/setlocalversion
+         sed -i 's/ -dirty//g' kernel_platform/msm-kernel/scripts/setlocalversion
+         sed -i '$s|echo "\$res"|echo "$res"|' kernel_platform/common/scripts/setlocalversion            
+         sed -i '$s|echo "\$res"|echo "$res"|' kernel_platform/msm-kernel/scripts/setlocalversion
+      
       - name: Set up KernelSU Next
         if: github.event.inputs.KSUNEXT_ENABLED == 'true'
         run: |
@@ -95,16 +101,13 @@ jobs:
          cp ../susfs4ksu/kernel_patches/50_add_susfs_in_gki-${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}.patch ./common/
          cp -r ../susfs4ksu/kernel_patches/fs/* ./common/fs/
          cp -r ../susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
-
          # Apply patches
          cd ./KernelSU-Next
          patch -p1 < 0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch || true
          cd ../common
          patch -p1 < 50_add_susfs_in_gki-${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}.patch || true
-
          cp ../../kernel_patches/next/next_hooks.patch ./
          patch -p1 -F 3 < next_hooks.patch
-
          # Apply VFS fix changes directly
          cd ../  # Move back to kernel_platform directory
          sed -i '/#include "selinux\/selinux.h"/a \
@@ -118,7 +121,6 @@ jobs:
          extern bool ksu_vfs_read_hook;\
          extern bool ksu_execveat_hook;\
          extern bool ksu_input_hook;' kernel/ksud.h || true
-
          cd common  # Move back to common directory for the next patch
          cp ../../kernel_patches/69_hide_stuff.patch ./
          patch -p1 -F 3 < 69_hide_stuff.patch
@@ -126,7 +128,6 @@ jobs:
          cd ../msm-kernel
          git add -A && git commit -a -m "Update for SUSFS"
          cd ..
-
       - name: Apply new hook and add configuration
         run: |
          cd kernel_workspace/kernel_platform
@@ -156,19 +157,11 @@ jobs:
           echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
          sed -i '2s/check_defconfig//' ./common/build.config.gki
-
-      - name: Rename
-         rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
-         rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
-         #sed -i 's/ -dirty//g' kernel_platform/common/scripts/setlocalversion
-         #sed -i 's/ -dirty//g' kernel_platform/msm-kernel/scripts/setlocalversion
-         #sed -i '$s|echo "\$res"|echo "$res"|' kernel_platform/common/scripts/setlocalversion            
-         #sed -i '$s|echo "\$res"|echo "$res"|' kernel_platform/msm-kernel/scripts/setlocalversion
-
+               
       - name: Build kernel
         run: |
          cd kernel_workspace
-         for file in $(find ${GITHUB_WORKSPACE} -type f -name 'setlocalversion' 2>/dev/null);do sed -i 's/-dirty//' $file;sed -i '$s|echo "\$res"|echo "$res"|' $file;done
+         export LTO=thin
          ./kernel_platform/oplus/build/oplus_build_kernel.sh ${{ github.event.inputs.CPUD }} ${{ github.event.inputs.BUILD_METHOD }}
          
       - name: Make AnyKernel3
@@ -176,16 +169,12 @@ jobs:
          git clone https://github.com/Numbersf/AnyKernel3 --depth=1
          rm -rf ./AnyKernel3/.git
          cp kernel_workspace/kernel_platform/out/msm-kernel-pineapple-gki/dist/Image ./AnyKernel3/
-
       - name: Download SUSFS Module
         run: |
          wget https://github.com/sidex15/ksu_module_susfs/releases/latest/download/ksu_module_susfs_1.5.2+.zip
          cp ksu_module_susfs_1.5.2+.zip ./AnyKernel3/
-
       - name: Upload AnyKernel3
         uses: actions/upload-artifact@v4
         with:
          name: AnyKernel3_KernelSU_Next_${{ env.KSUVER }}_${{ github.event.inputs.FEIL }}
          path: ./AnyKernel3/*
-         
-     
