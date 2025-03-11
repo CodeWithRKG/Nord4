@@ -158,7 +158,7 @@ jobs:
          sed -i '2s/check_defconfig//' ./common/build.config.gki
 
       - name: rename
-         run: |
+        run: |
          rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
          rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
          #sed -i 's/ -dirty//g' kernel_platform/common/scripts/setlocalversion
