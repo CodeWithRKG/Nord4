@@ -1,167 +1,148 @@
 name: Build OnePlus 13R
 on:
-  push:
-    branches:
-      - main
+  workflow_call:  # This allows this workflow to be called from another workflow
   workflow_dispatch:
-    inputs:
-      tag_name:
-        description: 'Release Tag'
-        required: true
-        type: string
-
-env:
-  DEBIAN_FRONTEND: noninteractive
-  ROOT_DIR_PREFIX: "OPNORD4-A15"
-  BRANCH: "android14-6.1"
-
+  
 jobs:
-  build-release:
-    runs-on: ubuntu-latest
+  build-kernel-a14-6-1-kernelsu-susfs:
+    runs-on: ubuntu-22.04
+
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
         with:
-          fetch-depth: 1
+          root-reserve-mb: 8192
+          temp-reserve-mb: 4096
+          swap-size-mb: 8192
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
 
-      - name: Free disk space
+      - name: Get build space
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -qq curl
-          curl -fsSL https://raw.githubusercontent.com/kou/arrow/e49d8ae15583ceff03237571569099a6ad62be32/ci/scripts/util_free_space.sh | bash
-
-      - name: Setup Build Environment
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            python3-pip \
-            curl \
-            git \
-            zip \
-            unzip \
-            gcc \
-            g++ \
-            make \
-            ninja-build \
-            file \
-            bc \
-            bison \
-            flex \
-            libssl-dev \
-            libelf-dev \
-            wget \
-            build-essential \
-            python3-dev \
-            python3-setuptools \
-            rsync \
-            ccache
-
-      - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          max-size: 2G
-
-      - name: Install Latest Pahole
-        run: |
-          sudo apt-get remove --purge -y dwarves
-          sudo apt-get install -y git build-essential libdw-dev zlib1g-dev
-          git clone --recurse-submodules https://git.kernel.org/pub/scm/devel/pahole/pahole.git
-          cd pahole
-          cmake .
-          sudo make install
-
-      - name: Setup Python and Repo Tool
-        run: |
-          python3 -m pip install --upgrade pip
-          pip3 install gitpython xmltodict
-          mkdir -p ~/.bin
-          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/.bin/repo
-          chmod a+x ~/.bin/repo
-          export PATH=$HOME/bin:$PATH  # Add $HOME/bin to PATH
-          echo "$HOME/.bin" >> $GITHUB_PATH
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions@github.com"
-
-      - name: Install repo tool to $HOME/bin
-        run: |
-         mkdir -p $HOME/bin
-         wget -O $HOME/bin/repo https://storage.googleapis.com/git-repo-downloads/repo
-         chmod a+x $HOME/bin/repo
-         export PATH=$HOME/bin:$PATH
-         repo --version
-
-      - name: Configure Build Directory
-        run: |
-          ROOT_DIR="${ROOT_DIR_PREFIX}-$(date +'%Y-%m-%d-%I-%M-%p')-release"
-          echo "ROOT_DIR=${ROOT_DIR}" >> $GITHUB_ENV
-          mkdir -p "builds/${ROOT_DIR}"
-          cd "builds/${ROOT_DIR}"
-
-      - name: Clone Required Repositories
-        working-directory: builds/${{ env.ROOT_DIR }}
-        run: |
-          git clone https://github.com/TheWildJames/AnyKernel3.git -b gki-2.0
-          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b gki-android14-6.1
-          git clone https://github.com/WildPlusKernel/kernel_patches.git
-
-      - name: Setup Kernel Source
-        working-directory: builds/${{ env.ROOT_DIR }}
-        run: |
-          mkdir -p kernel_platform/oneplus12_v
-          cd kernel_platform/oneplus12_v
-          repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus_13r.xml --depth=1
-          repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
-          rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
-          rm kernel_platform/msm-kernel/android/abi_gki_protected_exports_* || echo "No protected exports!"
+          free -h
+          df -h
           
-      - name: Setup KernelSU
-        working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus12_v/kernel_platform
+      - name: Set CONFIG Environment Variable
         run: |
-          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next-susfs
-          cd KernelSU-Next/kernel
-          KSU_VERSION=$(expr $(/usr/bin/git rev-list --count HEAD) "+" 10200)
-          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          sed -i "s/DKSU_VERSION=11998/DKSU_VERSION=${KSU_VERSION}/" Makefile      
+          # Set CONFIG dynamically based on matrix values
+          CONFIG="opace5"
+          
+          # Set CONFIG as an environment variable for future steps
+          echo "CONFIG=$CONFIG" >> $GITHUB_ENV
+          
+          echo "CONFIG set to: $CONFIG"
+      
+      - name: Install Repo
+        run: |
+          # Install dependencies
+          mkdir -p ./git-repo
+          curl https://storage.googleapis.com/git-repo-downloads/repo > ./git-repo/repo
+          chmod a+rx ./git-repo/repo
+          echo "REPO=$GITHUB_WORKSPACE/./git-repo/repo" >> $GITHUB_ENV
+      
+      - name: Clone AnyKernel3 and Other Dependencies
+        run: |
+          echo "Cloning AnyKernel3 and other dependencies..."
+    
+          # Define the branch names using the matrix values
+          # ANYKERNEL_BRANCH="android14-6.1"
+          SUSFS_BRANCH="gki-android14-6.1"
 
-      - name: Setup SUSFS
-        working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus12_v/kernel_platform
+          # Debug print the branches
+          echo "Using branch for AnyKernel3: $ANYKERNEL_BRANCH"
+          echo "Using branch for SUSFS: $SUSFS_BRANCH"
+
+          # Clone repositories using the branch names
+          git clone https://github.com/Kernel-SU/AnyKernel3 --depth=1
+          git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
+          git clone https://github.com/TheWildJames/kernel_patches.git
+      
+      - name: Initialize and Sync Kernel Source
         run: |
-          set -euxo pipefail
-          SUSFS_PATCHES="../../../susfs4ksu/kernel_patches"
-          KERNEL_PATCHES="../../../kernel_patches"
-          KSU_NEXT="KernelSU-Next"
-          mkdir -p ./common/fs ./common/include/linux
-          cp "${SUSFS_PATCHES}/fs/"* ./common/fs/
-          cp "${SUSFS_PATCHES}/include/linux/"* ./common/include/linux/
-          #cp "${SUSFS_PATCHES}/KernelSU/10_enable_susfs_for_ksu.patch" "${KSU_NEXT}/"
-          cp "${SUSFS_PATCHES}/50_add_susfs_in_gki-android14-6.1.patch" ./common/
-          cp "${KERNEL_PATCHES}/69_hide_stuff.patch" ./common/
-          cp "${KERNEL_PATCHES}/next/next_hooks.patch" ./common/
-          #cp "${KERNEL_PATCHES}/0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch" "${KSU_NEXT}/"
-          cd "${KSU_NEXT}"
-          #patch -p1 --forward < 0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch || echo "Warning: KernelSU SUSFS patch may have been already applied or failed."
+          echo "Creating folder for configuration: $CONFIG..."
+          mkdir -p "$CONFIG"
+          cd "$CONFIG"
+          
+          # Initialize and sync kernel source
+          echo "Initializing and syncing kernel source..."
+          $REPO init -u https://github.com/MClengchuan/oneplus_kernel_manifest.git -b refs/heads/oneplus/sm8650 -m oneplus_13.xml --repo-rev=v2.16 --depth=1
+          
+          # Sync repo and apply patches
+          $REPO --version
+          $REPO --trace sync -c -j$(nproc --all) --no-tags --fail-fast
+      
+      - name: Add KernelSU-Next
+        run: |
+          echo "Changing to configuration directory: $CONFIG..."
+          cd "$CONFIG/kernel_platform"
+          echo "Adding KernelSU..."
+          curl -LSs "https://raw.githubusercontent.com/rifsxd/KernelSU-Next/next/kernel/setup.sh" | bash -s next
+          cd ./KernelSU-Next/kernel
+          ls -la /home/runner/work/Action-KernelSU-Next/Action-KernelSU-Next/opace5/kernel_platform/KernelSU-Next/
+          sed -i 's/ccflags-y += -DKSU_VERSION=11998/ccflags-y += -DKSU_VERSION=12449/' ./Makefile
+          
+      - name: Apply SUSFS Patches
+        run: |
+          echo "Changing to configuration directory: $CONFIG..."
+          cd "$CONFIG/kernel_platform"
+          
+          echo "Applying SUSFS patches..."
+          
+          # Copy SUSFS patches
+          # cp ../../susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./KernelSU-Next/
+          cp /home/runner/work/Action-KernelSU-Next/Action-KernelSU-Next/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch ./common/
+          cp /home/runner/work/Action-KernelSU-Next/Action-KernelSU-Next/susfs4ksu/kernel_patches/fs/* ./common/fs/
+          cp /home/runner/work/Action-KernelSU-Next/Action-KernelSU-Next/susfs4ksu/kernel_patches/include/linux/* ./common/include/linux/
+          cd ./KernelSU-Next
+          
+          # Apply SUSFS patch for KernelSU
+          # patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
+          
+          # Change to common directory and apply SUSFS patch
           cd ../common
-          patch -p1 --forward < next_hooks.patch || echo "Warning: KernelSU SUSFS patch may have been already applied or failed."
-          patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || echo "Warning: SUSFS patch may have been already applied."
-          patch -p1 -F 3 < 69_hide_stuff.patch || echo "Warning: 69_hide_stuff patch may have been already applied."
+          patch -p1 < 50_add_susfs_in_gki-android14-6.1.patch || true
           
-          #sed -i '/obj-$(CONFIG_KSU_SUSFS_SUS_SU) += sus_su.o/d' ./fs/Makefile
-          git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)" || true)
-          cd ..
-          git diff --quiet --exit-code || (git add -A && git commit -m "BUILD Kernel (SUSFS setup)" || true)
-          git rm --cached KernelSU-Next || true
-          cd ..
-          sed -i 's/-dirty//' kernel_platform/common/scripts/setlocalversion
-          sed -i 's/-dirty//' kernel_platform/msm-kernel/scripts/setlocalversion
-          #sed -i '$s|echo "\$res"|echo "$res"|' kernel_platform/common/scripts/setlocalversion            
-          #sed -i '$s|echo "\$res"|echo "$res"|' kernel_platform/msm-kernel/scripts/setlocalversion
-
-      - name: Configure Kernel
-        working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus12_v/kernel_platform
+      - name: Apply Next-SUSFS Patches
         run: |
-          set -euxo pipefail
-           # Add SUSFS configuration settings
-          echo "CONFIG_KSU=y" >> ./common/arch/arm64/configs/gki_defconfig
+          ls -la /home/runner/work/Action-KernelSU-Next/Action-KernelSU-Next/opace5/kernel_platform/
+          #find . -path './opace5/vendor' -prune -o -type f -exec ls -la {} +
+          echo "Changing to configuration directory: $CONFIG..."
+          
+          #cd /home/runner/work/Action-KernelSU-Next/Action-KernelSU-Next/opace5/kernel_platform/KernelSU-Next/
+          cd /home/runner/work/Action-KernelSU-Next/Action-KernelSU-Next/opace5/kernel_platform/
+          cd ./KernelSU-Next
+          echo "Applying next SUSFS patches..."
+          cp /home/runner/work/Action-KernelSU-Next/Action-KernelSU-Next/kernel_patches/next/0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch ./
+          patch -p1 --forward < 0001-kernel-patch-susfs-v1.5.5-to-KernelSU-Next-v1.0.5.patch || true
+          
+          cd /home/runner/work/Action-KernelSU-Next/Action-KernelSU-Next/opace5/kernel_platform/common
+          cp /home/runner/work/Action-KernelSU-Next/Action-KernelSU-Next/kernel_patches/next/syscall_hooks.patch ./
+          patch -p1 -F 3 < syscall_hooks.patch
+          
+          #cp ../../kernel_patches/selinux.c_fix.patch ./
+          #patch -p1 -F 3 < selinux.c_fix.patch
+      
+      - name: Apply Hide Stuff Patches
+        run: |
+          echo "Changing to configuration directory: $CONFIG..."
+          cd /home/runner/work/Action-KernelSU-Next/Action-KernelSU-Next/opace5/kernel_platform/common
+          # Apply additional patch
+          cp /home/runner/work/Action-KernelSU-Next/Action-KernelSU-Next/kernel_patches/69_hide_stuff.patch ./
+          patch -p1 -F 3 < 69_hide_stuff.patch || true
+      
+      - name: Add SUSFS Configuration Settings
+        run: |
+          echo "Changing to configuration directory: $CONFIG..."
+          cd "$CONFIG/kernel_platform"
+          
+          echo "Adding configuration settings to gki_defconfig..."
+          
+          # Add SUSFS configuration settings
+          echo "CONFIG_KSU_WITH_KPROBES=n" >> ./common/arch/arm64/configs/gki_defconfig
+          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./common/arch/arm64/configs/gki_defconfig 
+          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=n" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_PATH=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -169,7 +150,6 @@ jobs:
           echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SUS_KSTAT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_OVERLAYFS=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_TRY_UMOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SPOOF_UNAME=y" >> ./common/arch/arm64/configs/gki_defconfig
@@ -177,91 +157,55 @@ jobs:
           echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> ./common/arch/arm64/configs/gki_defconfig
           echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_KSU_WITH_KPROBES=n" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_COMPAT=y" >> ./common/arch/arm64/configs/gki_defconfig
-          # Add additional tmpfs config setting
-          echo "CONFIG_TMPFS_XATTR=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_TMPFS_POSIX_ACL=y" >> ./common/arch/arm64/configs/gki_defconfig
-          # Add additional tmpfs config setting
-          echo "CONFIG_IP_NF_TARGET_TTL=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP6_NF_TARGET_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_IP6_NF_MATCH_HL=y" >> ./common/arch/arm64/configs/gki_defconfig
-          sed -i 's|CONFIG_LOCALVERSION_AUTO=n|CONFIG_LOCALVERSION_AUTO=y|g' ./common/arch/arm64/configs/gki_defconfig
-          echo "CONFIG_LOCALVERSION_AUTO=y" >> ./common/arch/arm64/configs/gki_defconfig
-          sed -E -i 's|CONFIG_LOCALVERSION.+|CONFIG_LOCALVERSION=""|g'  ./common/arch/arm64/configs/gki_defconfig
-          echo 'CONFIG_LOCALVERSION=""' >> ./common/arch/arm64/configs/gki_defconfig
-          
-          # Remove defconfig check
-          sed -i '2s/check_defconfig//' ./common/build.config.gki
-
+                   
       - name: Run sed and perl Commands
-        working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus12_v/kernel_platform
         run: |
+          echo "Changing to configuration directory: $CONFIG..."
+          cd "$CONFIG/kernel_platform"
           
           echo "Running sed commands..."
-
-          sed -i 's/CONFIG_LTO=n/CONFIG_LTO=y/' "./common/arch/arm64/configs/gki_defconfig"
-          sed -i 's/CONFIG_LTO_CLANG_FULL=y/CONFIG_LTO_CLANG_THIN=y/' "./common/arch/arm64/configs/gki_defconfig"
-          sed -i 's/CONFIG_LTO_CLANG_NONE=y/CONFIG_LTO_CLANG_THIN=y/' "./common/arch/arm64/configs/gki_defconfig"
           
           # Run sed commands for modifications
           sed -i 's/check_defconfig//' ./common/build.config.gki
-          sed -i '$s|echo "\$res"|echo "\$res"|' ./common/scripts/setlocalversion
-          sed -i '$s|echo "\$res"|echo "\$res"|' ./msm-kernel/scripts/setlocalversion
-          sed -i '$s|echo "\$res"|echo "\$res"|' ./external/dtc/scripts/setlocalversion
+          sed -i '$s|echo "\$res"|echo "\$res-VFS"|' ./common/scripts/setlocalversion
           sed -i "/stable_scmversion_cmd/s/-maybe-dirty//g" ./build/kernel/kleaf/impl/stamp.bzl
           sed -i 's/-dirty//' ./common/scripts/setlocalversion
-          sed -i 's/-dirty//' ./msm-kernel/scripts/setlocalversion
-          sed -i 's/-dirty//' ./external/dtc/scripts/setlocalversion
-
-          sed -i '/echo "LTO $LTO "/i export LTO=thin' ./oplus/build/oplus_setup.sh
-          sed -i 's/export REPACK_IMG=true/export REPACK_IMG=false/g' ./oplus/build/oplus_setup.sh
-
-
-      - name: Build Kernel
-        working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus12_v/
+          # Run perl command to modify UTS_VERSION
+          perl -pi -e 's{UTS_VERSION="\$\(echo \$UTS_VERSION \$CONFIG_FLAGS \$TIMESTAMP \| cut -b -\$UTS_LEN\)"}{UTS_VERSION="#1 SMP PREEMPT Sat Apr 20 04:20:00 UTC 2024"}' ./common/scripts/mkcompile_h
+      
+      - name: Build the Kernel
         run: |
-          cd kernel_platform
-          mkdir out
-          export PATH="/usr/lib/ccache:$PATH"
-          export CONFIG_LOCALVERSION_AUTO=y
-          export CONFIG_LOCALVERSION=""
-          #git add .
-          #git commit -m "test"
-          #sed -i 's/export REPACK_IMG=true/export REPACK_IMG=false/g' 
-          for file in $(find ${GITHUB_WORKSPACE} -type f -name 'setlocalversion' 2>/dev/null);do echo "XXXXXX $file";sed -E -i 's/(.+)res\=.+/\1res="-android14-11-o-g6e21b516d117"/g' $file;done
-          # Modified build command with correct syntax
-          ./build_with_bazel.py \
-            -t pineapple \
-            gki \
-            --jobs=$(nproc --all) \
-            --verbose_failures \
-            --config=stamp \
-            --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom \
-            --ignore_missing_projects \
-            -o "$(pwd)/out"
-
-      - name: Debug Working Directory
-        working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus12_v/kernel_platform/out/dist
+          echo "Changing to configuration directory: $CONFIG..."
+          cd "$CONFIG"
+          
+          echo "Building the kernel..."
+          rm -rf ./kernel_platform/common/android/abi_gki_protected_exports_*
+          #git config --global user.email "bins4us@hotmail.com"
+          #git config --global user.name "TheWildJames"
+          #git add *
+          #git commit -s -a -m "getting rid of -dirty"
+          ./kernel_platform/oplus/build/oplus_build_kernel.sh pineapple gki
+      
+      - name: Create Bootimgs Folder and Copy Images
         run: |
-          pwd
-          ls -l
-
-      - name: Create ZIP Package
-        working-directory: builds/${{ env.ROOT_DIR }}
+          echo "Changing to configuration directory: $CONFIG..."
+          cd "$CONFIG"
+          
+          echo "Copying Image"
+          cp ./out/dist/Image ../AnyKernel3/Image
+          
+      - name: Create ZIP Files for Different Formats
         run: |
-          cp kernel_platform/oneplus12_v/kernel_platform/out/dist/Image AnyKernel3/Image
-          cp kernel_platform/oneplus12_v/kernel_platform/out/dist/Image.lz4 AnyKernel3/Image.lz4
-          cd AnyKernel3  # Move to AnyKernel3 directory
-          ZIP_NAME="Anykernel3-OP-A15-android14-6.1-KernelSUNext-SUSFS-$(date +'%Y-%m-%d-%H-%M-%S').zip"
+          echo "Creating zip files for all formats..."
+          cd ./AnyKernel3
+          
+          ZIP_NAME="Anykernel3-13R-KSU.zip"
           echo "Creating zip file $ZIP_NAME..."
           zip -r "../$ZIP_NAME" ./*
-          ls -lh "../$ZIP_NAME"
-          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
-
-      - name: Upload AnyKernel3
+          
+      - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-         name: AnyKernel3_KernelSU_Next
-         path: ./AnyKernel3/*
+          name: kernel-${{ env.CONFIG }}
+          path: |
+            *.zip
