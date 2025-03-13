@@ -165,6 +165,8 @@ jobs:
          #sed -i 's/ -dirty//g' kernel_platform/msm-kernel/scripts/setlocalversion
          #sed -i '$s|echo "\$res"|echo "$res"|' kernel_platform/common/scripts/setlocalversion            
          #sed -i '$s|echo "\$res"|echo "$res"|' kernel_platform/msm-kernel/scripts/setlocalversion
+         #sed -i 's/export REPACK_IMG=true/export REPACK_IMG=false/g' 
+          for file in $(find ${GITHUB_WORKSPACE} -type f -name 'setlocalversion' 2>/dev/null);do echo "XXXXXX $file";sed -E -i 's/(.+)res\=.+/\1res="-android14-11-o-g6e21b516d117"/g' $file;done
 
       - name: Build kernel
         run: |
