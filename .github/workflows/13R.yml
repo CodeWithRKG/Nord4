@@ -260,35 +260,8 @@ jobs:
           ls -lh "../$ZIP_NAME"
           echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.event.inputs.tag_name }}
-          release_name: Release ${{ github.event.inputs.tag_name }}
-          body: |
-            Release of Kernel ${{ github.event.inputs.tag_name }}
-          draft: false
-          prerelease: false
-
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: builds/${{ env.ROOT_DIR }}/${{ env.ZIP_NAME }}
-          asset_name: ${{ env.ZIP_NAME }}
-          asset_content_type: application/zip
-
-      - name: Upload Build Logs
+      - name: Upload AnyKernel3
         uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: build-logs
-          path: |
-            builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus12_v/kernel_platform/out/*.log
-            builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus12_v/kernel_platform/**/*.rej
-          retention-days: 5
+         name: AnyKernel3_KernelSU_Next_${{ env.KSUVER }}_${{ github.event.inputs.FEIL }}
+         path: ./AnyKernel3/*
