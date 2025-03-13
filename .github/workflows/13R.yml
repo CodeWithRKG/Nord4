@@ -107,8 +107,8 @@ jobs:
       - name: Setup Kernel Source
         working-directory: builds/${{ env.ROOT_DIR }}
         run: |
-          mkdir -p kernel_platform/oneplus12_v
-          cd kernel_platform/oneplus12_v
+          mkdir -p kernel_platform/oneplus13r
+          cd kernel_platform/oneplus13r
           repo init -u https://github.com/OnePlusOSS/kernel_manifest.git -b oneplus/sm8650 -m oneplus_13r.xml --depth=1
           repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
           rm kernel_platform/common/android/abi_gki_protected_exports_* || echo "No protected exports!"
@@ -157,7 +157,7 @@ jobs:
           #sed -i '$s|echo "\$res"|echo "$res"|' kernel_platform/msm-kernel/scripts/setlocalversion
 
       - name: Configure Kernel
-        working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus12_v/kernel_platform
+        working-directory: builds/${{ env.ROOT_DIR }}/kernel_platform/oneplus13r/kernel_platform
         run: |
           set -euxo pipefail
            # Add SUSFS configuration settings
@@ -252,7 +252,6 @@ jobs:
         working-directory: builds/${{ env.ROOT_DIR }}
         run: |
           cp kernel_platform/oneplus_13r/kernel_platform/out/dist/Image AnyKernel3/Image
-          cp kernel_platform/oneplus_13r/kernel_platform/out/dist/Image.lz4 AnyKernel3/Image.lz4
           cd AnyKernel3  # Move to AnyKernel3 directory
           ZIP_NAME="AK3-OP13R-$(date +'%Y-%m-%d-%H-%M-%S').zip"
           echo "Creating zip file $ZIP_NAME..."
